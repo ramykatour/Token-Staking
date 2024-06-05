@@ -21,7 +21,7 @@ contract Staking is Ownable {
     uint256 public constant UNSTAKE_FEE = 3; 
     APYOption[] public apyOptions;
     mapping(address => Staker) public stakers;
-    constructor(address _stakingToken) {
+    constructor(address _stakingToken) Ownable(msg.sender) {
         stakingToken = IERC20(_stakingToken);
         apyOptions.push(APYOption({apy: 30, period: 30 days}));
         apyOptions.push(APYOption({apy: 60, period: 60 days}));
@@ -42,13 +42,10 @@ contract Staking is Ownable {
     function unstake() external {
         Staker storage staker = stakers[msg.sender];
         require(staker.amount > 0, "No tokens to unstake");
-
         uint256 fee = (staker.amount * UNSTAKE_FEE) / 100;
         uint256 amountAfterFee = staker.amount - fee;
-
         stakingToken.safeTransfer(msg.sender, amountAfterFee);
         stakingToken.safeTransfer(owner(), fee);
-
         staker.rewardDebt = calculateRewards(msg.sender);
         staker.amount = 0;
         staker.startTime = 0;
@@ -63,10 +60,8 @@ contract Staking is Ownable {
     function calculateRewards(address stakerAddress) public view returns (uint256) {
         Staker storage staker = stakers[stakerAddress];
         if (staker.amount == 0) return 0;
-
         uint256 stakingDuration = block.timestamp - staker.startTime;
         uint256 apy = getAPYForPeriod(staker.period);
-
         uint256 rewards = (staker.amount * apy * stakingDuration) / (365 days * 100);
         return rewards + staker.rewardDebt;
     }
