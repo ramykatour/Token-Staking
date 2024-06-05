@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Token Staking DApp</title>
+    <script src="https://cdn.jsdelivr.net/gh/ethereum/web3.js@1.3.0/dist/web3.min.js"></script>
+</head>
+<body>
+    <h1>Token Staking DApp</h1>
+    <div>
+        <label for="amount">Stake Amount:</label>
+        <input type="text" id="amount" />
+        <label for="period">Stake Period:</label>
+        <select id="period">
+            <option value="2592000">30 days</option>
+            <option value="5184000">60 days</option>
+            <option value="7776000">90 days</option>
+        </select>
+        <button onclick="stake()">Stake</button>
+    </div>
+    <div>
+        <button onclick="unstake()">Unstake</button>
+    </div>
+    <div>
+        <button onclick="claimRewards()">Claim Rewards</button>
+    </div>
+    <div>
+        <h2>Staking Information</h2>
+        <pre id="info"></pre>
+    </div>
+    <script>
+        let web3 = new Web3(Web3.givenProvider || "http://localhost:8545");
+        const contractABI = [];
+        const contractAddress = "0xYourContractAddress"; 
+        const contract = new web3.eth.Contract(contractABI, contractAddress);
+        async function getAccount() {
+            const accounts = await ethereum.request({ method: 'eth_requestAccounts' });
+            return accounts[0];
+        }
+        async function stake() {
+            const account = await getAccount();
+            const amount = document.getElementById('amount').value;
+            const period = document.getElementById('period').value;
+
+            const amountInWei = web3.utils.toWei(amount, 'ether');
+            
+            contract.methods.stake(amountInWei, period).send({ from: account })
+                .on('receipt', function(receipt) {
+                    alert('Staked successfully!');
+                    showInfo();
+                })
+                .on('error', function(error) {
+                    console.error(error);
+                });
+        }
+        async function unstake() {
+            const account = await getAccount();
+
+            contract.methods.unstake().send({ from: account })
+                .on('receipt', function(receipt) {
+                    alert('Unstaked successfully!');
+                    showInfo();
+                })
+                .on('error', function(error) {
+                    console.error(error);
+                });
+        }
+        async function claimRewards() {
+            const account = await getAccount();
+            contract.methods.claimRewards().send({ from: account })
+                .on('receipt', function(receipt) {
+                    alert('Rewards claimed successfully!');
+                    showInfo();
+                })
+                .on('error', function(error) {
+                    console.error(error);
+                });
+        }
+        async function showInfo() {
+            const account = await getAccount();
+            const info = await contract.methods.getStakerInfo(account).call();
+            document.getElementById('info').innerText = `
+                Amount Staked: ${web3.utils.fromWei(info.amount, 'ether')} tokens
+                Staking Start Time: ${new Date(info.startTime * 1000).toLocaleString()}
+                Rewards: ${web3.utils.fromWei(info.rewards, 'ether')} tokens
+            `;
+        }
+        async function init() {
+            if (window.ethereum) {
+                try {
+                    await ethereum.request({ method: 'eth_requestAccounts' });
+                    showInfo();
+                } catch (error) {
+                    console.error('User denied account access');
+                }
+            } else {
+                console.error('Non-Ethereum browser detected. You should consider trying MetaMask!');
+            }
+        }
+        window.onload = init;
+    </script>
+</body>
+</html>
